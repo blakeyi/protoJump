@@ -52,7 +52,7 @@ function isMessageOrEnum(line) {
     return false
 }
 
-async function getWordPos(word) {
+export async function getWordPos(word) {
     let str = fs.readFileSync("message.json")
     let data = JSON.parse(str)
     let ret = null
