@@ -1,6 +1,8 @@
-import { Position, Range, TextEdit, TextEditor, TextEditorEdit, Location, Uri, ViewColumn, window } from "vscode";
+import { Position, Range, TextEdit, TextEditor, TextEditorEdit, Location, Uri, ViewColumn, window, LocationLink } from "vscode";
 const fs = require("fs");
 const os = require('os');
+const path = require('path');
+
 // 文字选择
 export default function textSelect(vscode) {
     return vscode.commands.registerTextEditorCommand('vsplugin.textSelectCommand', async (textEditor: TextEditor, edit: TextEditorEdit) => {
@@ -10,7 +12,6 @@ export default function textSelect(vscode) {
         let doc = textEditor.document
         let line = doc.lineAt(start.line)
         let text = textEditor.document.getText(range)
-
         const rootPath =
             vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0
                 ? vscode.workspace.workspaceFolders[0].uri.fsPath
@@ -18,9 +19,16 @@ export default function textSelect(vscode) {
 
         // 第一次先判断是否存在文件
         try {
-            fs.accessSync('message.json', fs.constants.R_OK);
+            let fileName = "message.json"
+            let osType = os.type()
+            let newLine = "\r\n"
+            if (osType == "linux") {
+                newLine = '\n'
+                fileName = path.join("/root", fileName)
+            }
+            fs.accessSync(fileName, fs.constants.R_OK);
 
-            let word = await getWordPos(text)
+            let word = await getWordPos(fileName, text)
             if (word !== null) {
                 const options = {
                     selection: new Range(new Position(word.line, 0), new Position(word.line, 0)),
@@ -36,9 +44,11 @@ export default function textSelect(vscode) {
                 `你选择的是${text}, 未找到定义`)
 
         } catch (err) {
+            // let exPath = vscode.extensions.getExtension("protojump").extensionPath
+            let fileName = "message.json"
             vscode.window.showInformationMessage(
                 `正在初始化,请稍后...`)
-            ReadAllFiles(vscode)
+            ReadAllFiles(vscode, fileName)
         }
 
     });
@@ -52,8 +62,8 @@ function isMessageOrEnum(line) {
     return false
 }
 
-export async function getWordPos(word) {
-    let str = fs.readFileSync("message.json")
+export async function getWordPos(fileName, word) {
+    let str = fs.readFileSync(fileName)
     let data = JSON.parse(str)
     let ret = null
 
@@ -70,29 +80,42 @@ export async function getWordPos(word) {
     return ret
 }
 
+function hashCode(str) {
+    var hash = 0, i, chr;
+    if (str.length === 0) return hash;
+    for (i = 0; i < this.length; i++) {
+        chr = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + chr;
+        hash |= 0; // Convert to 32bit integer
+    }
+    return hash;
+}
 
 async function GetAllProtoFiles(vscode) {
     return vscode.workspace.findFiles("**/*.proto");
 }
 
+function log(msg) {
+    fs.appendFileSync("message.log", msg + '\n');
+}
 
-async function ReadAllFiles(vscode) {
+export async function ReadAllFiles(vscode, fileName) {
     let osType = os.type()
     let newLine = "\r\n"
-    if (osType == "linux") {
+    if (osType == "Linux") {
         newLine = '\n'
+        fileName = path.join("/root", fileName)
     }
     let files = await GetAllProtoFiles(vscode);
     let ret = {
         enum: [],
         message: []
     }
-    let count = files.length;
     files.forEach(file => {
         let data = fs.readFileSync(file.fsPath, { encoding: "utf-8" })
         let lines = data.split(newLine)
         lines.forEach((element, index) => {
-            if (element.search(/^enum.*(?!s|$)/i) != -1) {
+            if (element.search(/^enum.*/i) != -1) {
                 let list = element.split(' ')
                 if (list.length < 2) {
                     return
@@ -105,7 +128,7 @@ async function ReadAllFiles(vscode) {
                 return
             }
 
-            if (element.search(/^message.*(?!s|$)/i) != -1) {
+            if (element.search(/^message.*/i) != -1) {
                 let list = element.split(' ')
                 if (list.length < 2) {
                     return
@@ -119,16 +142,8 @@ async function ReadAllFiles(vscode) {
             }
 
         });
-        console.log(ret);
-        console.log(os.type());
-        count--;
-        if (count <= 0) {
-            // this.OnReadComplete();
-            console.log(111);
-        }
 
     });
-    console.log(ret)
-    fs.writeFileSync('message.json', JSON.stringify(ret));
+    fs.writeFileSync(fileName, JSON.stringify(ret));
 }
 

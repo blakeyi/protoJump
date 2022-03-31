@@ -3,7 +3,7 @@
     "displayName": "protojump",
     "description": "go to protobuf define",
     "publisher": "blakeyi",
-    "version": "0.0.1",
+    "version": "1.0.0",
     "engines": {
         "vscode": "^1.50.0"
     },
@@ -26,6 +26,12 @@
             {
                 "command": "vsplugin.textSelectCommand",
                 "key": "f12",
+                "mac": "cmd+l",
+                "when": "editorTextFocus"
+            },
+            {
+                "command": "vsplugin.updateCommand",
+                "key": "f11",
                 "mac": "cmd+l",
                 "when": "editorTextFocus"
             }
@@ -53,6 +59,7 @@
         "vscode-test": "^1.4.0"
     },
     "dependencies": {
-        "axios": "^0.21.0"
+        "axios": "^0.21.0",
+        "js-base64": "^3.7.2"
     }
 }
