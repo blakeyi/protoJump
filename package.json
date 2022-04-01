@@ -2,8 +2,8 @@
     "name": "protojump",
     "displayName": "protojump",
     "description": "go to protobuf define",
-    "publisher": "blakeyi",
-    "version": "1.0.0",
+    "publisher": "protojump",
+    "version": "1.0.2",
     "engines": {
         "vscode": "^1.50.0"
     },
@@ -11,8 +11,12 @@
         "Other"
     ],
     "activationEvents": [
-        "*"
+        "onLanguage:proto3"
     ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Microsoft/vscode-extension-samples"
+    },
     "main": "./out/extension.js",
     "contributes": {
         "commands": [
@@ -22,18 +26,29 @@
                 "category": "protojump"
             }
         ],
+        "languages": [
+            {
+                "id": "proto3",
+                "extensions": [
+                    ".proto"
+                ],
+                "aliases": [
+                    "Protocol Buffers"
+                ]
+            }
+        ],
         "keybindings": [
             {
                 "command": "vsplugin.textSelectCommand",
                 "key": "f12",
                 "mac": "cmd+l",
-                "when": "editorTextFocus"
+                "when": "editorLangId == 'proto3' && editorTextFocus"
             },
             {
                 "command": "vsplugin.updateCommand",
                 "key": "f11",
                 "mac": "cmd+l",
-                "when": "editorTextFocus"
+                "when": "editorLangId == 'proto3' && editorTextFocus"
             }
         ]
     },

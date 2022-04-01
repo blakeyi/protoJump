@@ -2,32 +2,31 @@ import { Position, Range, TextEdit, TextEditor, TextEditorEdit, Location, Uri, V
 const fs = require("fs");
 const os = require('os');
 const path = require('path');
+const { log } = require('../utils/log')
+const { hex_md5 } = require('../utils/md5')
+
 
 // 文字选择
 export default function textSelect(vscode) {
     return vscode.commands.registerTextEditorCommand('vsplugin.textSelectCommand', async (textEditor: TextEditor, edit: TextEditorEdit) => {
         let start = textEditor.selection.start
-        let end = textEditor.selection.end
-        let range = new Range(start, end)
-        let doc = textEditor.document
-        let line = doc.lineAt(start.line)
-        let text = textEditor.document.getText(range)
+        // let end = textEditor.selection.end
+        // let range = new Range(start, end)
+        // let doc = textEditor.document
+        // let line = doc.lineAt(start.line)
+        // 通过当前鼠标位置获得word
+        let range1 = textEditor.document.getWordRangeAtPosition(start)
+        let text = textEditor.document.getText(range1)
         const rootPath =
             vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0
                 ? vscode.workspace.workspaceFolders[0].uri.fsPath
                 : undefined;
-
+        let md5Str = hex_md5(rootPath)
+        const extensionPath = vscode.extensions.getExtension("protojump.protojump").extensionPath
         // 第一次先判断是否存在文件
         try {
-            let fileName = "message.json"
-            let osType = os.type()
-            let newLine = "\r\n"
-            if (osType == "linux") {
-                newLine = '\n'
-                fileName = path.join("/root", fileName)
-            }
+            let fileName = path.join(extensionPath, `${md5Str}-proto.json`)
             fs.accessSync(fileName, fs.constants.R_OK);
-
             let word = await getWordPos(fileName, text)
             if (word !== null) {
                 const options = {
@@ -45,7 +44,7 @@ export default function textSelect(vscode) {
 
         } catch (err) {
             // let exPath = vscode.extensions.getExtension("protojump").extensionPath
-            let fileName = "message.json"
+            let fileName = path.join(extensionPath, `${md5Str}-proto.json`)
             vscode.window.showInformationMessage(
                 `正在初始化,请稍后...`)
             ReadAllFiles(vscode, fileName)
@@ -54,13 +53,6 @@ export default function textSelect(vscode) {
     });
 }
 
-
-function isMessageOrEnum(line) {
-    if (line.search(/^enum.*(?!s|$)/i) != -1 || line.search(/^message.*(?!s|$)/i) != -1) {
-        return true
-    }
-    return false
-}
 
 export async function getWordPos(fileName, word) {
     let str = fs.readFileSync(fileName)
@@ -80,23 +72,22 @@ export async function getWordPos(fileName, word) {
     return ret
 }
 
-function hashCode(str) {
-    var hash = 0, i, chr;
-    if (str.length === 0) return hash;
-    for (i = 0; i < this.length; i++) {
-        chr = str.charCodeAt(i);
-        hash = ((hash << 5) - hash) + chr;
-        hash |= 0; // Convert to 32bit integer
-    }
-    return hash;
-}
 
 async function GetAllProtoFiles(vscode) {
     return vscode.workspace.findFiles("**/*.proto");
 }
 
-function log(msg) {
-    fs.appendFileSync("message.log", msg + '\n');
+// 删除前后指定字符
+function Trim(src, char, position) {
+    if (char) {
+        if (position == 'left') {
+            return src.replace(new RegExp('^\\' + char + '+', 'g'), '');
+        } else if (position == 'right') {
+            return src.replace(new RegExp('\\' + char + '+$', 'g'), '');
+        }
+        return src.replace(new RegExp('^\\' + char + '+|\\' + char + '+$', 'g'), '');
+    }
+    return src.replace(/^\s+|\s+$/g, '');
 }
 
 export async function ReadAllFiles(vscode, fileName) {
@@ -104,7 +95,6 @@ export async function ReadAllFiles(vscode, fileName) {
     let newLine = "\r\n"
     if (osType == "Linux") {
         newLine = '\n'
-        fileName = path.join("/root", fileName)
     }
     let files = await GetAllProtoFiles(vscode);
     let ret = {
@@ -120,8 +110,9 @@ export async function ReadAllFiles(vscode, fileName) {
                 if (list.length < 2) {
                     return
                 }
+                let name = Trim(list[1], '{', '')
                 ret.enum.push({
-                    name: list[1],
+                    name: name,
                     path: file.fsPath,
                     line: index
                 })
@@ -133,8 +124,9 @@ export async function ReadAllFiles(vscode, fileName) {
                 if (list.length < 2) {
                     return
                 }
+                let name = Trim(list[1], '{', '')
                 ret.message.push({
-                    name: list[1],
+                    name: name,
                     path: file.fsPath,
                     line: index
                 })
@@ -144,6 +136,6 @@ export async function ReadAllFiles(vscode, fileName) {
         });
 
     });
-    fs.writeFileSync(fileName, JSON.stringify(ret));
+    return fs.writeFileSync(fileName, JSON.stringify(ret));
 }
 

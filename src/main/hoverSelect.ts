@@ -6,6 +6,8 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 import { getWordPos } from "./textSelect"
+const { log } = require('../utils/log')
+const { hex_md5 } = require('../utils/md5')
 
 /**
  * 查找文件定义的provider，匹配到了就return一个location，否则不做处理
@@ -16,17 +18,16 @@ import { getWordPos } from "./textSelect"
  */
 async function provideDefinition(document, position, token) {
     const word = document.getText(document.getWordRangeAtPosition(position));
-    console.log('word: ' + word); // 当前光标所在单词
-    let fileName = "message.json"
-    let osType = os.type()
-    let newLine = "\r\n"
-    if (osType == "linux") {
-        newLine = '\n'
-        fileName = path.join("/root", fileName)
-    }
+    const extensionPath = vscode.extensions.getExtension("protojump.protojump").extensionPath
+    const rootPath =
+        vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0
+            ? vscode.workspace.workspaceFolders[0].uri.fsPath
+            : undefined;
+    let md5Str = hex_md5(rootPath)
+    let fileName = path.join(extensionPath, `${md5Str}-proto.json`)
     let ret = await getWordPos(fileName, word)
     if (fs.existsSync(ret.path)) {
-        // new vscode.Position(0, 0) 表示跳转到某个文件的第一行第一列
+        // define重复出现? 和vscode-proto3有重合
         return new vscode.Location(vscode.Uri.file(ret.path), new vscode.Position(ret.line, 0));
     }
     return
